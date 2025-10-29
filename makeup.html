@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Makeup Style Analyzer</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(180deg, #0f1724 0%, #1b2436 100%);
+      color: #f3f6fb;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .app {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 800px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+    }
+    h1 { margin: 0 0 10px; text-align:center; font-size: 24px; }
+    p { color:#a6b2c3; text-align:center; margin:0 0 24px; }
+    .uploader {
+      border: 2px dashed rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 24px;
+    }
+    .uploader.dragover { border-color: #a78bfa; background: rgba(167,139,250,0.05); }
+    .uploader input { display:none; }
+    img#preview { max-width: 100%; border-radius: 12px; display:none; margin-bottom:20px; }
+    button {
+      display:block;
+      margin: 0 auto;
+      background: linear-gradient(90deg,#8b5cf6,#5eead4);
+      border:none;
+      padding:12px 20px;
+      border-radius:12px;
+      font-weight:600;
+      cursor:pointer;
+      color:#031520;
+    }
+    .result {
+      margin-top: 24px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      display:none;
+    }
+    .style-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f9fafb;
+      text-align:center;
+      margin-bottom: 10px;
+    }
+    .product-list {
+      display:grid;
+      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+      gap:10px;
+      font-size:14px;
+    }
+    .product {
+      background: rgba(255,255,255,0.07);
+      padding:12px;
+      border-radius:10px;
+    }
+    a.back {
+      display:inline-block;
+      margin-top:20px;
+      color:#93c5fd;
+      text-decoration:none;
+      font-size:14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Makeup Style Analyzer 💋</h1>
+    <p>ატვირთე შენი ფოტო და გაიგე რომელი მაკიაჟის სტილი გაწყობს ყველაზე მეტად</p>
+
+    <label class="uploader" id="uploader">
+      <input type="file" id="fileInput" accept="image/*" />
+      <div>დააჭირე ან გადააგდე ფოტო აქ</div>
+    </label>
+
+    <img id="preview" alt="preview" />
+    <button id="analyzeBtn">გაანალიზე</button>
+
+    <div class="result" id="result">
+      <div class="style-name" id="styleName"></div>
+      <div class="product-list" id="productList"></div>
+    </div>
+
+    <a href="index.html" class="back">← დაბრუნდი პალიტრის გვერდზე</a>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const uploader = document.getElementById('uploader');
+    const preview = document.getElementById('preview');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resultBox = document.getElementById('result');
+    const styleNameEl = document.getElementById('styleName');
+    const productListEl = document.getElementById('productList');
+
+    let imageLoaded = false;
+
+    uploader.addEventListener('click', () => fileInput.click());
+    uploader.addEventListener('dragover', e => { e.preventDefault(); uploader.classList.add('dragover'); });
+    uploader.addEventListener('dragleave', e => uploader.classList.remove('dragover'));
+    uploader.addEventListener('drop', e => {
+      e.preventDefault();
+      uploader.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) loadFile(file);
+    });
+
+    function loadFile(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        preview.src = reader.result;
+        preview.style.display = 'block';
+        imageLoaded = true;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    analyzeBtn.addEventListener('click', () => {
+      if (!imageLoaded) return alert('ატვირთე ჯერ ფოტო!');
+      analyzeStyle();
+    });
+
+    function analyzeStyle(){
+      // დამუშავება: ავიღოთ საშუალო ფერი ფოტოდან და დავადგინოთ მაკიაჟის ტიპი
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = preview.naturalWidth;
+      canvas.height = preview.naturalHeight;
+      ctx.drawImage(preview,0,0);
+      const data = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+      let r=0,g=0,b=0,count=0;
+      for(let i=0;i<data.length;i+=40){
+        r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++;
+      }
+      r/=count; g/=count; b/=count;
+
+      let style;
+      if (r<90 && g<90 && b<90) style = "Dark Feminine";
+      else if (r>180 && g>170 && b>160) style = "Clean Girl";
+      else if (r>160 && g<140 && b<140) style = "Bold Makeup";
+      else if (b>r && b>g) style = "Soft";
+      else style = "Slavic";
+
+      const productRecommendations = {
+        "Dark Feminine": [
+          "ტონალური: Full coverage matte foundation",
+          "ბლაში: Burgundy ან plum ტონი",
+          "თვალის ტუში: Volume black",
+          "პომადა: Deep red ან dark mauve",
+        ],
+        "Clean Girl": [
+          "ტონალური: Light skin tint",
+          "ბლაში: Peachy ან soft pink",
+          "თვალის ტუში: Natural brown",
+          "ლიპგლოსი: Clear ან nude gloss",
+        ],
+        "Bold Makeup": [
+          "ტონალური: Satin finish medium coverage",
+          "ბლაში: Coral ან rose",
+          "თვალის ჩრდილი: Bold colorful tones",
+          "პომადა: Hot red ან fuchsia",
+        ],
+        "Soft": [
+          "ტონალური: Dewy BB cream",
+          "ბლაში: Baby pink ან soft rose",
+          "ტუში: Lengthening black",
+          "ლიპგლოსი: Light pink shine",
+        ],
+        "Slavic": [
+          "ტონალური: Full glam matte",
+          "ბლაში: Neutral brown-pink mix",
+          "თვალის ჩრდილი: Smokey neutral",
+          "პომადა: Beige ან muted rose",
+        ]
+      };
+
+      showResult(style, productRecommendations[style]);
+    }
+
+    function showResult(style, products){
+      styleNameEl.textContent = `შენი მაკიაჟის სტილია: ${style}`;
+      productListEl.innerHTML = products.map(p=>`<div class="product">${p}</div>`).join("");
+      resultBox.style.display = 'block';
+    }
+  </script>
+</body>
+<a href="index.html" style="color:#a78bfa;display:inline-block;margin-top:20px;text-decoration:none;font-weight:600;">
+→ გადადი ფერების ანალიტიკაზე
+</a>
+</html>

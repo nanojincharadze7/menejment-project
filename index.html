@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Palette Finder — რა არის შენი პალიტრა?</title>
+  <style>
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --muted: #9aa4b2;
+      --accent: #8b5cf6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, var(--bg) 0%, #071023 100%);
+      color: #e6eef6;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .app {
+      width:100%;
+      max-width:980px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;
+      padding:20px;
+      box-shadow: 0 6px 30px rgba(2,6,23,0.7);
+    }
+
+    header {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:18px;
+    }
+    h1 {
+      font-size:18px;
+      margin:0;
+      letter-spacing: -0.2px;
+    }
+    p.lead {
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .controls {
+      display:flex;
+      gap:12px;
+      margin-top:14px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .uploader {
+      flex:1 1 360px;
+      background:rgba(255,255,255,0.02);
+      border: 1px dashed rgba(255,255,255,0.05);
+      padding:18px;
+      border-radius:10px;
+      text-align:center;
+      transition: border-color .15s, background-color .15s;
+      cursor: pointer;
+    }
+    .uploader.dragover {
+      border-color: rgba(139,92,246,0.8);
+      background-color: rgba(139,92,246,0.03);
+    }
+    .uploader input { display:none; }
+    .uploader .hint { color:var(--muted); font-size:13px; }
+
+    .preview {
+      width:300px;
+      min-width:200px;
+      background:var(--card);
+      border-radius:10px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      padding:8px;
+      align-items:center;
+      justify-content:center;
+    }
+    .preview img {
+      max-width:100%;
+      max-height:200px;
+      object-fit:contain;
+      border-radius:6px;
+      display:block;
+      background:#0b1220;
+    }
+
+    .palette {
+      margin-top:16px;
+      display:flex;
+      gap:8px;
+      align-items:stretch;
+      flex-wrap:wrap;
+    }
+    .swatch {
+      flex: 1 1 0;
+      min-width: 56px;
+      height:84px;
+      border-radius:8px;
+      position:relative;
+      overflow:hidden;
+      cursor:pointer;
+      box-shadow: inset 0 -6px 12px rgba(0,0,0,0.25);
+    }
+    .swatch .meta {
+      position:absolute;
+      left:8px;
+      right:8px;
+      bottom:8px;
+      background: rgba(0,0,0,0.24);
+      color:#fff;
+      padding:6px 8px;
+      font-size:12px;
+      border-radius:6px;
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      align-items:center;
+      backdrop-filter: blur(4px);
+    }
+    .meta .hex { font-weight:600; font-family:monospace; }
+    .meta .copy { font-size:12px; opacity:0.9; padding:6px 8px; border-radius:6px; background:rgba(255,255,255,0.06); cursor:pointer; }
+
+    .info {
+      margin-top:14px;
+      color:var(--muted);
+      font-size:13px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .controls .select {
+      background:rgba(255,255,255,0.02);
+      padding:8px 10px;
+      border-radius:8px;
+      color:var(--muted);
+      border:1px solid rgba(255,255,255,0.02);
+    }
+
+    .footer {
+      margin-top:18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    button.primary {
+      background:linear-gradient(90deg,var(--accent), #5eead4);
+      border:none;
+      color:#03202c;
+      padding:10px 14px;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .copied-toast {
+      position:fixed;
+      right:20px;
+      bottom:20px;
+      background:#081827;
+      color:#bfeef5;
+      padding:10px 14px;
+      border-radius:10px;
+      box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+      display:none;
+      font-size:13px;
+    }
+
+    @media (max-width:720px){
+      .controls { flex-direction:column; }
+      .preview { width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Palette Finder">
+    <header>
+      <div>
+        <h1>Palette Finder</h1>
+        <p class="lead">ატვირთე ფოტო და ნახე შენი პალიტრა — HEX და RGB მნიშვნელობებით.</p>
+      </div>
+    </header>
+
+    <div class="controls" >
+      <label class="uploader" id="uploader" tabindex="0" aria-label="ატვირთე ან გადააგდე ფოტო აქ">
+        <input type="file" id="fileInput" accept="image/*" />
+        <div style="font-weight:700">ატვირთე მხატვრული ფოტო</div>
+        <div class="hint">დააგდე ან დააჭირე – JPG/PNG. (მუშაობს ოფლაინ)</div>
+      </label>
+
+      <div class="preview" aria-live="polite">
+        <canvas id="hiddenCanvas" style="display:none"></canvas>
+        <img id="previewImg" alt="Uploaded preview" />
+        <div class="info">
+          <div>ფერების რაოდენობა:
+            <select id="kSelect" class="select" title="რამდენი ფერი გაიყვანოს">
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6" selected>6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <div>სელექცია:
+            <select id="sampleSelect" class="select" title="რამდენი პიქსელი იქნება ანალიზისთვის">
+              <option value="1500">~1.5k</option>
+              <option value="3000">~3k</option>
+              <option value="8000" selected>~8k</option>
+              <option value="20000">~20k</option>
+            </select>
+          </div>
+        </div>
+        <div class="palette" id="palette"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div style="color:var(--muted); font-size:13px">
+        დაკონფიგურება: K-means + წამისებრი ანალიზი (მხოლოდ კლაიენტ საიდზე).
+      </div>
+      <div>
+        <button class="primary" id="analyzeBtn">ანალიზი</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="copied-toast" id="toast">ნაკვეთი გაგრძელდა</div>
+
+  <script>
+    // utility: hex/rgb
+    function rgbToHex(r,g,b){
+      const toHex = v => v.toString(16).padStart(2,'0');
+      return '#' + toHex(r) + toHex(g) + toHex(b);
+    }
+    function hexToRgb(hex){
+      const h=hex.replace('#','');
+      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    }
+
+    // sample pixels from imageData (random sampling)
+    function samplePixels(imageData, sampleCount){
+      const px = imageData.data;
+      const total = px.length / 4;
+      const samples = [];
+      if (sampleCount >= total){
+        for (let i=0;i<total;i++){
+          const idx = i*4;
+          samples.push([px[idx], px[idx+1], px[idx+2]]);
+        }
+        return samples;
+      }
+      const used = new Set();
+      while (samples.length < sampleCount){
+        const i = Math.floor(Math.random()*total);
+        if (used.has(i)) continue;
+        used.add(i);
+        const idx = i*4;
+        const r=px[idx], g=px[idx+1], b=px[idx+2];
+        // ignore near-transparent or nearly white/black noise? keep all for simplicity
+        samples.push([r,g,b]);
+      }
+      return samples;
+    }
+
+    // K-means clustering (simple, robust enough for palette extraction)
+    function kmeans(samples, k=6, maxIter=12){
+      if (samples.length === 0) return [];
+      // init centroids - pick random samples
+      const centroids = [];
+      const used = new Set();
+      while (centroids.length < k){
+        const i = Math.floor(Math.random()*samples.length);
+        if (used.has(i)) continue;
+        used.add(i);
+        centroids.push(samples[i].slice());
+      }
+
+      let assignments = new Array(samples.length).fill(-1);
+
+      for (let iter=0; iter<maxIter; iter++){
+        let changed = false;
+        // assign
+        for (let i=0;i<samples.length;i++){
+          const s = samples[i];
+          let best = 0;
+          let bestDist = Number.POSITIVE_INFINITY;
+          for (let c=0;c<centroids.length;c++){
+            const d = dist2(s, centroids[c]);
+            if (d < bestDist){ bestDist = d; best = c; }
+          }
+          if (assignments[i] !== best){
+            assignments[i] = best;
+            changed = true;
+          }
+        }
+        // update centroids
+        const sums = Array.from({length:k}, () => [0,0,0,0]); // r,g,b,count
+        for (let i=0;i<samples.length;i++){
+          const a = assignments[i];
+          const s = samples[i];
+          sums[a][0]+=s[0]; sums[a][1]+=s[1]; sums[a][2]+=s[2]; sums[a][3]++;
+        }
+        for (let c=0;c<k;c++){
+          if (sums[c][3] === 0) continue; // empty cluster
+          centroids[c][0] = Math.round(sums[c][0]/sums[c][3]);
+          centroids[c][1] = Math.round(sums[c][1]/sums[c][3]);
+          centroids[c][2] = Math.round(sums[c][2]/sums[c][3]);
+        }
+        if (!changed) break;
+      }
+
+      // compute sizes for ordering
+      const counts = new Array(k).fill(0);
+      for (let i=0;i<assignments.length;i++){
+        counts[assignments[i]]++;
+      }
+      const result = centroids.map((c,i)=>({rgb:c, count:counts[i]}))
+        .sort((a,b)=>b.count - a.count);
+      return result;
+    }
+
+    function dist2(a,b){
+      const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+      return dr*dr + dg*dg + db*db;
+    }
+
+    // UI wiring
+    const fileInput = document.getElementById('fileInput');
+    const uploader = document.getElementById('uploader');
+    const previewImg = document.getElementById('previewImg');
+    const canvas = document.getElementById('hiddenCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const kSelect = document.getElementById('kSelect');
+    const sampleSelect = document.getElementById('sampleSelect');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const paletteEl = document.getElementById('palette');
+    const toast = document.getElementById('toast');
+
+    // drag & drop
+    ['dragenter','dragover'].forEach(ev=>{
+      uploader.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        uploader.classList.add('dragover');
+      });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      uploader.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        uploader.classList.remove('dragover');
+      });
+    });
+    uploader.addEventListener('drop', e=>{
+      const f = e.dataTransfer.files?.[0];
+      if (f) handleFile(f);
+    });
+
+    uploader.addEventListener('click', ()=>fileInput.click());
+    uploader.addEventListener('keydown', (e)=>{ if(e.key==='Enter') fileInput.click(); });
+
+    fileInput.addEventListener('change', (e)=>{
+      const f = e.target.files?.[0];
+      if (f) handleFile(f);
+    });
+
+    function handleFile(file){
+      if (!file.type.startsWith('image/')) { alert('ფაილი უნდა იყოს სურათი.'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        previewImg.src = reader.result;
+        previewImg.onload = () => {
+          // auto-run small analyze for immediate feedback
+          runAnalysis();
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+
+    analyzeBtn.addEventListener('click', runAnalysis);
+
+    function showToast(text='კოპირდა') {
+      toast.textContent = text;
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      setTimeout(()=> {
+        toast.style.transition = 'opacity .45s';
+        toast.style.opacity = '0';
+        setTimeout(()=> toast.style.display = 'none', 450);
+      }, 900);
+    }
+
+    function runAnalysis(){
+      if (!previewImg.src) { alert('არ გაქვთ ატვირთული ფოტო.'); return; }
+      // draw image into canvas (max size to keep performance)
+      const maxDim = 1200; // avoid enormous canvas
+      let w = previewImg.naturalWidth;
+      let h = previewImg.naturalHeight;
+      const scale = Math.min(1, maxDim / Math.max(w,h));
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+      canvas.width = w;
+      canvas.height = h;
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(previewImg, 0,0,w,h);
+      try {
+        const imageData = ctx.getImageData(0,0,w,h);
+        const sampleCount = parseInt(sampleSelect.value,10) || 8000;
+        const samples = samplePixels(imageData, sampleCount);
+
+        const k = Math.max(1, Math.min(12, parseInt(kSelect.value,10) || 6));
+        // do kmeans - run a couple of times and pick best by compactness
+        const runs = 2;
+        let best = null;
+        let bestScore = Number.POSITIVE_INFINITY;
+        for (let r=0;r<runs;r++){
+          const res = kmeans(samples, k, 12);
+          // compute intra-cluster variance as score
+          let score = 0;
+          // approximate: sum squared distance of sample to its nearest centroid
+          for (let i=0;i<samples.length;i++){
+            let mind = Infinity;
+            for (let c=0;c<res.length;c++){
+              const d = dist2(samples[i], res[c].rgb);
+              if (d < mind) mind = d;
+            }
+            score += mind;
+          }
+          if (score < bestScore){
+            bestScore = score;
+            best = res;
+          }
+        }
+
+        renderPalette(best || []);
+      } catch (err){
+        console.error(err);
+        alert('სურათის ანალიზი ვერ მოხერხდა: ' + err.message);
+      }
+    }
+
+    function renderPalette(colors){
+      paletteEl.innerHTML = '';
+      if (!colors || colors.length === 0){
+        paletteEl.innerHTML = '<div style="color:var(--muted);font-size:13px">ფერი ვერ გამოვტანეთ.</div>';
+        return;
+      }
+      colors.forEach((c, idx)=>{
+        const [r,g,b] = c.rgb;
+        const hex = rgbToHex(r,g,b);
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = `linear-gradient(180deg, rgba(0,0,0,0.06), rgba(255,255,255,0.02)), ${hex}`;
+        sw.title = `${hex} — count ${c.count}`;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const left = document.createElement('div');
+        left.innerHTML = `<div class="hex">${hex}</div><div style="font-size:11px;opacity:.9">${r},${g},${b}</div>`;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy';
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          navigator.clipboard?.writeText(hex).then(()=> showToast(hex + ' კოპირდა'));
+        });
+        meta.appendChild(left);
+        meta.appendChild(copyBtn);
+        sw.appendChild(meta);
+        // click swatch copies hex
+        sw.addEventListener('click', ()=> {
+          navigator.clipboard?.writeText(hex).then(()=> showToast(hex + ' კოპირდა'));
+        });
+        paletteEl.appendChild(sw);
+      });
+    }
+
+    // small helper: if user pastes image URL into clipboard, allow quick paste (optional)
+    window.addEventListener('paste', (e)=>{
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let it of items){
+        if (it.type.indexOf('image') !== -1){
+          const file = it.getAsFile();
+          if (file) handleFile(file);
+        }
+      }
+    });
+
+    // keyboard shortcut: A to analyze
+    window.addEventListener('keydown', (e)=>{
+      if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        runAnalysis();
+      }
+    });
+
+    // initial small placeholder palette
+    renderPalette([
+      {rgb:[139,92,246], count:1},
+      {rgb:[94,234,212], count:1},
+      {rgb:[255,183,3], count:1},
+      {rgb:[255,88,88], count:1},
+      {rgb:[24,190,255], count:1},
+      {rgb:[34,197,94], count:1}
+    ]);
+  </script>
+</body>
+<a href="makeup.html" style="color:#a78bfa;display:inline-block;margin-top:20px;text-decoration:none;font-weight:600;">
+→ გადადი მაკიაჟის ტიპის განსაზღვრაზე
+</a>
+
+</html>
