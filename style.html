@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Style Finder 🕶️</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Find Your Perfect Style 🕶️</h1>
+    <p>ატვირთე სურათი.</p>
+
+    <label for="upload" class="btn">ატვირტე ფაილი</label>
+    <input type="file" id="upload" accept="image/*" capture="environment" />
+
+    <div id="preview"></div>
+
+    <div id="result" class="hidden">
+      <h2>შენი საუკეთესო სტილი</h2>
+      <p id="glasses"></p>
+      <p id="beard"></p>
+    </div>
+
+    <a href="index.html" class="back">← გადადი ფერების განსაზღვრაზე</a>
+    <a href="makeup.html" style="color:#a78bfa;display:inline-block;margin-top:20px;text-decoration:none;font-weight:600;">
+  <div className="fixed bottom-6 right-6 md:hidden">
+  <Link
+    to="/makeup"
+    className="px-5 py-3 bg-pink-500 text-white rounded-full shadow-lg hover:bg-pink-600 transition-all"
+  >
+  </Link>
+</div>
+→ განსაზღვრე შენი მაკიაჟის სტილი
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const preview = document.getElementById('preview');
+    const result = document.getElementById('result');
+    const glassesText = document.getElementById('glasses');
+    const beardText = document.getElementById('beard');
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.classList.add('photo');
+        preview.innerHTML = '';
+        preview.appendChild(img);
+
+        // მარტივი დემო ლოგიკა (შეგიძლია შეცვალო ნამდვილი ანალიზით)
+        const random = Math.random();
+        if (random < 0.33) {
+          glassesText.textContent = 'Best glasses: Round frames 👓';
+        } else if (random < 0.66) {
+          glassesText.textContent = 'Best glasses: Square frames 🕶️';
+        } else {
+          glassesText.textContent = 'Best glasses: Aviator frames 😎';
+        }
+
+        result.classList.remove('hidden');
+      }
+    });
+  </script>
+  <a href="index.html" style="color:#a78bfa;display:inline-block;margin-top:20px;text-decoration:none;font-weight:600;">
+</body>
+</html>
